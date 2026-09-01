@@ -62,7 +62,15 @@ class BybitClient:
         else:
             resp = requests.post(url, json=body or {}, headers=headers, timeout=10)
 
-        data = resp.json()
+        # ⚠️ 인증 실패 시 Bybit이 항상 JSON 바디를 주는 게 아님 — 특히 GET 프라이빗
+        # 엔드포인트는 키 누락 시 본문 없이 401만 반환하는 경우가 있음(POST 엔드포인트는
+        # retCode/retMsg가 담긴 JSON을 줌, 실측 확인함). resp.json()을 그냥 부르면
+        # JSONDecodeError로 죽어버리니, HTTP 상태코드/원문까지 포함해 안전하게 처리.
+        try:
+            data = resp.json()
+        except ValueError:
+            raise BybitAPIError(f"{path} 실패: HTTP {resp.status_code}, 응답 본문이 JSON이 아님"
+                                 f"(원문: {resp.text[:200]!r}) — API 키 누락/인증 실패일 가능성 높음")
         if data.get("retCode") != 0:
             raise BybitAPIError(f"{path} 실패: retCode={data.get('retCode')} "
                                  f"retMsg={data.get('retMsg')} (요청: {params or body})")
