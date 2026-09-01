@@ -6,10 +6,21 @@ TradingView 웹훅 얼러트를 받아서 실제 거래소 주문으로 실행�
 
 ## 구성
 
-- [`bitget/`](./bitget) — Bitget USDT-M 선물 웹훅 봇 (FastAPI)
+같은 트레이딩뷰 웹훅 얼러트(JSON)를 그대로 여러 거래소 봇에 동시에 연결할 수 있도록, 4개
+봇 모두 동일한 comment 계약(Long/Short/Long-Conf/Short-Conf/tphalf/tpfull/ma200dn/ma200up/
+StopLoss)을 씁니다. 거래소 API 자체가 서로 달라서(서명 방식, 헤지모드 청산 주문 구조, 주문
+수량 단위 등) 구현은 각자 독립적입니다 — 자세한 차이는 각 폴더의 README/CLAUDE.md 참고.
 
-거래소가 늘어나면 각자 자기 하위 폴더에 독립적으로 추가됩니다 (설정/실행 방법도 각 폴더의
-README를 따로 참고).
+| 폴더 | 거래소 | 기본 포트 | 실측 검증 상태 |
+|---|---|---|---|
+| [`bitget/`](./bitget) | Bitget USDT-M 선물 | 8000 | ✅ 실거래로 검증됨 |
+| [`bybit/`](./bybit) | Bybit USDT 무기한 선물 | 8001 | ⚠️ 문서 기준 작성, 미검증 |
+| [`binance/`](./binance) | Binance USDⓈ-M 선물 | 8002 | ⚠️ 문서 기준 작성, 미검증 |
+| [`okx/`](./okx) | OKX USDT 무기한 스왑 | 8003 | ⚠️ 문서 기준 작성, 미검증 |
+
+`bitget/`을 제외한 세 봇은 아직 실제 데모/테스트넷 계좌로 실측 검증되지 않았습니다 — 반드시
+DRY_RUN → 데모/테스트넷 → 소액 실전 순서로 직접 검증한 뒤 사용하세요 (각 폴더 README의
+"먼저 읽어주세요" 참고).
 
 ## 공통 설계 원칙
 
