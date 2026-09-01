@@ -1,5 +1,7 @@
 # TradingView 웹훅 자동매매 봇 (OKX)
 
+**Language:** 한국어 (현재) | [English](./README.en.md)
+
 트레이딩뷰 전략(별도 비공개 Pine Script, 이 저장소에는 포함되지 않음)의 진입/청산 얼러트를
 웹훅으로 받아서, OKX 무기한 스왑(USDT)으로 실제 주문을 내고 텔레그램으로 결과를 알려주는
 파이썬 서버입니다. `../bitget/`, `../bybit/`, `../binance/`와 동일한 웹훅 계약(comment 태그)을
@@ -56,6 +58,34 @@ curl -X POST http://localhost:8003/webhook/tradingview \
 
 트레이딩뷰 얼러트 메시지 JSON, 실전 전환 절차는 `../bitget/README.md`의 3~4단계와 동일한
 형식이니 그쪽을 참고하세요 (Webhook URL의 포트만 `8003`으로 바꾸면 됨).
+
+## 서버는 어디서 돌리나요?
+
+이 서버가 24시간 인터넷에서 접속 가능해야 트레이딩뷰 웹훅을 받을 수 있습니다. VPS 고르는
+법부터 systemd 등록, HTTPS 리버스 프록시까지는
+[최상위 README의 "서버는 어디서, 어떻게 돌리나요?"](../README.md#서버는-어디서-어떻게-돌리나요)에
+정리해뒀습니다. 이 폴더용 systemd 서비스만 빠르게 보면:
+
+```ini
+# /etc/systemd/system/tvbot-okx.service
+[Unit]
+Description=TradingView Webhook Bot (okx)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/exchange-trading-bots/okx
+ExecStart=/root/exchange-trading-bots/okx/venv/bin/python webhook_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now tvbot-okx
+```
 
 ## API 키 발급 시 주의사항
 

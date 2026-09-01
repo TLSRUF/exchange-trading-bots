@@ -1,5 +1,7 @@
 # TradingView 웹훅 자동매매 봇 (Bitget)
 
+**Language:** 한국어 (현재) | [English](./README.en.md)
+
 트레이딩뷰 전략(별도 비공개 Pine Script, 이 저장소에는 포함되지 않음)의 진입/청산 얼러트를
 웹훅으로 받아서, Bitget USDT-M 선물로 실제 주문을 내고 텔레그램으로 결과를 알려주는 파이썬
 서버입니다.
@@ -126,10 +128,34 @@ Bitget은 별도 테스트넷 키가 없습니다. 평소 API 키 그대로 쓰�
 1. `.env`의 `BITGET_PRODUCT_TYPE=USDT-FUTURES`로 변경, 실전 API 키 확인.
 2. `DRY_RUN=false` + 실전 productType 조합이면 `LIVE_TRADING_CONFIRM=I_ACCEPT_THE_RISK`를
    명시적으로 넣어야 서버가 켜집니다(실수 방지용 최종 안전장치, `config.py` 참고).
-3. 서버가 24시간 상시 실행되어야 알림을 놓치지 않습니다. `nohup python webhook_bot.py &` 또는
-   `systemd`/`pm2` 같은 프로세스 매니저 사용 권장.
-4. 방화벽에서 `WEBHOOK_PORT`(기본 8000)를 트레이딩뷰가 접근 가능하게 열어야 함. 가능하면 리버스
-   프록시(nginx 등)로 HTTPS를 앞단에 두는 걸 권장.
+3. 서버가 24시간 상시 실행되어야 알림을 놓치지 않습니다. "이 서버를 어디서/어떻게 계속
+   띄워두나"는 [최상위 README의 "서버는 어디서, 어떻게 돌리나요?"](../README.md#서버는-어디서-어떻게-돌리나요)에
+   VPS 선택부터 systemd 등록, HTTPS 리버스 프록시까지 정리해뒀습니다. 이 폴더용 systemd
+   서비스 예시만 빠르게 보면:
+
+   ```ini
+   # /etc/systemd/system/tvbot-bitget.service
+   [Unit]
+   Description=TradingView Webhook Bot (bitget)
+   After=network.target
+
+   [Service]
+   Type=simple
+   WorkingDirectory=/root/exchange-trading-bots/bitget
+   ExecStart=/root/exchange-trading-bots/bitget/venv/bin/python webhook_bot.py
+   Restart=always
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   ```bash
+   sudo systemctl daemon-reload && sudo systemctl enable --now tvbot-bitget
+   ```
+4. 방화벽(및 클라우드 보안그룹)에서 `WEBHOOK_PORT`(기본 8000)를 트레이딩뷰가 접근 가능하게
+   열어야 함 — 또는 위 가이드처럼 Nginx 리버스 프록시로 HTTPS를 앞단에 두고 포트를 직접
+   노출하지 않는 방법을 권장.
 
 ## API 키 발급 시 주의사항
 
