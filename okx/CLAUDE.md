@@ -11,10 +11,11 @@ over HTTP, translate them into real OKX orders sized against the real account ba
 the result to Telegram. Reuses the exact same webhook comment contract as `../bitget/`, `../bybit/`,
 and `../binance/`, so the same TradingView alert JSON can be pointed at all four bots simultaneously.
 
-**Status: written against OKX's official V5 API docs, not yet live-exercised against a real demo
-account.** Treat every exchange-specific field name and behavior here — especially the
-contract-size conversion below — as needing confirmation against a real account before trusting it
-with money. See "Known gaps".
+**Status: public-endpoint parsing, the coin→contract size conversion, and the full webhook request
+path have been live-exercised against OKX's real API (no account needed for any of those); everything
+that requires account authentication (balance, positions, leverage/hedge-mode setup, actual order
+placement) has not been — there is no OKX account available to test against yet.** See "Known gaps"
+below for exactly what was and wasn't checked.
 
 ## Commands
 
@@ -95,12 +96,23 @@ incident that motivated this; the mechanism itself is exchange-agnostic.
 
 ## Known gaps / next steps
 
-- **Not yet live-exercised.** No real signed order has been placed against OKX's demo API. Before
-  trusting this with money: get demo-only API keys from OKX's "Demo trading" panel, then run the
-  full open → partial-close → full-close cycle for both long and short, and confirm every field
-  name this code reads (`totalEq`, `markPx`, `pos`, `posSide`, `ctVal`, `lotSz`) actually appears in
-  the real response — and specifically confirm the contract-size conversion produces the fill size
-  you expect.
+- **Verified without an account (2026-09-01, live against `www.okx.com`, no credentials):**
+  `get_mark_price()` and `get_instrument()` parsing against real market/instrument data (`markPx`,
+  `ctVal="0.01"`, `lotSz="0.01"` for `BTC-USDT-SWAP` confirmed present and correctly parsed); the
+  coin→contract conversion math end-to-end (a hypothetical $4000 notional at the real live mark
+  price converted to coin quantity → contracts → lot-rounded, then converted back and checked
+  against the original target — matched to within `lotSz` precision); the full webhook request path
+  end-to-end via a running server + curl — secret validation (401 on mismatch), `_classify_alert()`
+  routing for an unknown comment (200 `ignored`), and clean error propagation for open/close alerts
+  (502 with OKX's own `code`/`msg`, not a crash) when the account-authenticated calls fail for lack
+  of credentials.
+- **Not yet verified: anything requiring real account authentication.** No real signed order has
+  been placed, and `totalEq`/`pos`/`posSide` have never been read from a real (non-error) response.
+  Before trusting this with money: get demo-only API keys from OKX's "Demo trading" panel, then run
+  the full open → partial-close → full-close cycle for both long and short, and confirm those field
+  names actually appear as expected in the real response — and specifically confirm the
+  contract-size conversion produces the fill size you expect on a real order, not just in the
+  standalone calculation checked above.
 - **`set_leverage` called twice at startup (once per `posSide`) is unverified** — hasn't been
   confirmed this is actually necessary vs. a single call without `posSide` being sufficient in the
   configured margin mode. Low risk either way (worst case: one of the two calls is a harmless no-op)

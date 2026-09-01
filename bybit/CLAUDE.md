@@ -11,10 +11,13 @@ order-fill alerts over HTTP, translate them into real Bybit orders sized against
 balance, and report the result to Telegram. Reuses the exact same webhook comment contract as
 `../bitget/`, so the same TradingView alert JSON can be pointed at both bots simultaneously.
 
-**Status: written against Bybit's official V5 API docs, not yet live-exercised against a real
-demo/testnet account.** Unlike `../bitget/` (which has a documented live-verified round-trip
-history), treat every exchange-specific field name and behavior here as needing confirmation
-against a real account before trusting it with money — see "Known gaps" below.
+**Status: public-endpoint parsing and the full webhook request path have been live-exercised
+against Bybit's real API (no account needed for either); everything that requires account
+authentication (balance, positions, leverage/margin-mode setup, actual order placement) has not
+been — there is no Bybit account available to test against yet.** Unlike `../bitget/` (which has a
+documented live-verified round-trip history covering the authenticated path too), treat the
+authenticated calls here as needing confirmation before trusting them with money — see "Known gaps"
+below for exactly what was and wasn't checked.
 
 ## Commands
 
@@ -82,17 +85,28 @@ incident that motivated this; the mechanism itself is exchange-agnostic.
 
 ## Known gaps / next steps
 
-- **Not yet live-exercised.** No real signed order has been placed against Bybit's demo or testnet
-  API. Before trusting this with money: run the full open → partial-close → full-close cycle on
-  `BYBIT_ENV=demo` for both long and short, and confirm every field name this code reads
-  (`totalEquity`, `markPrice`/`lastPrice`, `size`, `side`) actually appears in the real response —
-  exchange API responses sometimes differ from docs in practice (this exact class of surprise is
-  what `../bitget/CLAUDE.md` documents happening there).
-- **`set-margin-mode` / `switch-mode` failure handling is untested.** The code assumes these calls
-  either succeed or fail harmlessly (already-set / position open) and swallows `BybitAPIError` with
-  a warning either way — hasn't been confirmed against real error codes, so a real misconfiguration
-  (e.g. hedge mode never actually enabled) could currently go unnoticed. Consider tightening this
-  once the real error codes are known.
+- **Verified without an account (2026-09-01, live against `api.bybit.com`, no credentials):**
+  `get_tickers()`/`get_mark_price()` parsing against real market data (`markPrice` field confirmed
+  present and correctly parsed); the full webhook request path end-to-end via a running server +
+  curl — secret validation (401 on mismatch), `_classify_alert()` routing for an unknown comment
+  (200 `ignored`), and clean error propagation for open/close alerts (502 with a readable message,
+  not a crash) when the account-authenticated calls fail for lack of credentials. Also found and
+  fixed a real bug this way: unauthenticated GET requests to private endpoints (e.g.
+  `/v5/position/list`) return HTTP 401 with an **empty body**, not JSON — unlike POST endpoints,
+  which return a proper `retCode`/`retMsg` JSON error even when unauthenticated. The old
+  `_request()` called `resp.json()` unconditionally and crashed with an unhandled
+  `JSONDecodeError`; it now catches that and raises a clean `BybitAPIError` instead.
+- **Not yet verified: anything requiring real account authentication.** No real signed order has
+  been placed, and `totalEquity`/`size`/`side` have never been read from a real (non-empty)
+  response — there is no Bybit account available to test against. Before trusting this with money:
+  run the full open → partial-close → full-close cycle on `BYBIT_ENV=demo` for both long and short,
+  and confirm those field names actually appear as expected in the real authenticated response.
+- **`set-margin-mode` / `switch-mode` failure handling is untested against a *successful* auth
+  case.** Confirmed the code doesn't crash when these calls fail for lack of credentials (raises
+  cleanly, caught, logged as a warning) — but the code assumes failures are always harmless
+  (already-set / position open) and hasn't been confirmed against those *specific* real error codes
+  from an authenticated account, so a real misconfiguration (e.g. hedge mode never actually enabled)
+  could currently go unnoticed. Consider tightening this once the real error codes are known.
 - No idempotency/dedup on the webhook endpoint (same gap as `../bitget/`, same reasoning).
 - No retry/backoff on transient network errors.
 - Single-symbol only (`TRADE_CONFIG.symbol`).

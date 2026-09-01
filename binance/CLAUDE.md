@@ -11,9 +11,11 @@ over HTTP, translate them into real Binance orders sized against the real accoun
 report the result to Telegram. Reuses the exact same webhook comment contract as `../bitget/` and
 `../bybit/`, so the same TradingView alert JSON can be pointed at all three bots simultaneously.
 
-**Status: written against Binance's official USDⓈ-M Futures API docs, not yet live-exercised
-against a real testnet account.** Treat every exchange-specific field name and behavior here as
-needing confirmation against a real account before trusting it with money — see "Known gaps" below.
+**Status: public-endpoint parsing and the full webhook request path have been live-exercised
+against Binance's real API (no account needed for either); everything that requires account
+authentication (balance, positions, leverage/margin-type/hedge-mode setup, actual order placement)
+has not been — there is no Binance testnet account available to test against yet.** See "Known
+gaps" below for exactly what was and wasn't checked.
 
 ## Commands
 
@@ -92,12 +94,20 @@ inference needed.
 
 ## Known gaps / next steps
 
-- **Not yet live-exercised.** No real signed order has been placed against Binance's testnet API.
-  Before trusting this with money: get testnet-specific API keys from
+- **Verified without an account (2026-09-01, live against `fapi.binance.com`/
+  `testnet.binancefuture.com`, no credentials):** `get_mark_price()` parsing against real market
+  data (`markPrice` field confirmed present and correctly parsed); the full webhook request path
+  end-to-end via a running server + curl — secret validation (401 on mismatch), `_classify_alert()`
+  routing for an unknown comment (200 `ignored`), and clean error propagation for open/close alerts
+  (502 with Binance's own `code`/`msg`, not a crash) when the account-authenticated calls fail for
+  lack of credentials (`-2014 API-key format invalid`, returned as proper JSON — no non-JSON-response
+  surprise like the one found and fixed in `../bybit/`).
+- **Not yet verified: anything requiring real account authentication.** No real signed order has
+  been placed, and `totalMarginBalance`/`positionAmt`/`positionSide` have never been read from a
+  real (non-error) response. Before trusting this with money: get testnet-specific API keys from
   [testnet.binancefuture.com](https://testnet.binancefuture.com), then run the full open →
-  partial-close → full-close cycle for both long and short, and confirm every field name this code
-  reads (`totalMarginBalance`, `markPrice`, `positionAmt`, `positionSide`) actually appears in the
-  real response.
+  partial-close → full-close cycle for both long and short, and confirm those field names actually
+  appear as expected in the real response.
 - **`_IGNORABLE_CODES` handling is untested against real responses.** The assumption that `-4046`/
   `-4059` are the only "already configured" codes worth swallowing hasn't been confirmed against a
   live account — if margin type or position mode genuinely fails to apply for another reason, this
