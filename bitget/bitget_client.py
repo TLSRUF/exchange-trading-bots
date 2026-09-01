@@ -87,19 +87,12 @@ class BitgetClient:
                               {"productType": product_type}, signed=False)
 
     def get_contracts(self, product_type: str, symbol: Optional[str] = None) -> List[Dict]:
+        """웹훅 봇 로직에서는 안 쓰지만, 데모 심볼 매핑(config.resolve_trading_symbol)이
+        맞는지 확인할 때 쓴 진단용 메서드라 남겨둠 — 새 심볼을 추가할 때 재사용하게 됨."""
         params = {"productType": product_type}
         if symbol:
             params["symbol"] = symbol
         return self._request("GET", "/api/v2/mix/market/contracts", params, signed=False)
-
-    def get_history_candles(self, symbol: str, product_type: str, granularity: str,
-                             start_time: Optional[int] = None, end_time: Optional[int] = None,
-                             limit: int = 200) -> List[List[str]]:
-        params = {
-            "symbol": symbol, "productType": product_type, "granularity": granularity,
-            "limit": limit, "startTime": start_time, "endTime": end_time,
-        }
-        return self._request("GET", "/api/v2/mix/market/history-candles", params, signed=False)
 
     # ── 계좌/포지션 (인증 필요) ───────────────────────────────────
     def get_account(self, symbol: str, product_type: str, margin_coin: str = "USDT") -> Dict:
